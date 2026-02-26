@@ -1,0 +1,107 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.18.0",
+    "npm": ">=10.9.0"
+  },
+  "scripts": {
+    "build": "npx webpack --config webpack.prod.config.js",
+    "check-types": "tsc --noEmit",
+    "lint:all": "biome lint --diagnostic-level=error .",
+    "lint:fix": "biome lint --diagnostic-level=error --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "start:web": "npx webpack serve --config webpack.dev.config.js",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "test:unit": "jest"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^30.0.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "babel-loader": "^10.0.0",
+    "css-loader": "7.1",
+    "dotenv": "^17.2.3",
+    "file-loader": "^6.2.0",
+    "html-webpack-plugin": "^5.6.4",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "jest-extended": "^6.0.0",
+    "sass": "^1.94.2",
+    "sass-loader": "^16.0.6",
+    "style-loader": "4.0",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2",
+    "webpack-merge": "^6.0.1",
+    "@storybook/react-webpack5": "^8.4.0",
+    "@storybook/react": "^8.4.0",
+    "@storybook/addon-essentials": "^8.4.0",
+    "@storybook/addon-interactions": "^8.4.0",
+    "@storybook/addon-webpack5-compiler-babel": "^3.0.0",
+    "@storybook/blocks": "^8.4.0",
+    "@storybook/test": "^8.4.0",
+    "storybook": "^8.4.0"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.8",
+    "@mui/material": "^7.3.8",
+    "@reduxjs/toolkit": "^2.11.2",
+    "core-js": "^3.46.0",
+    "i18next": "^25.8.13",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
+    "react": "^18.3.1",
+    "react-best-gradient-color-picker": "^3.0.14",
+    "react-dom": "^18.3.1",
+    "react-google-recaptcha": "^3.1.0",
+    "react-i18next": "^16.5.4",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^6.28.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "moduleDirectories": [
+      "src",
+      "node_modules"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "moduleNameMapper": {
+      "\\.(css|scss)$": "identity-obj-proxy",
+      "\\.(png|jpg|jpeg|gif|svg|ico)$": "<rootDir>/jestFileMock.js",
+      "@shared/(.*)$": "<rootDir>/src/shared/$1",
+      "@components/(.*)$": "<rootDir>/src/shared/components/$1",
+      "@utils/(.*)$": "<rootDir>/src/shared/utils/$1"
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/jestSetupTestSuite.tsx"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.test.json"
+        }
+      ]
+    }
+  }
+}

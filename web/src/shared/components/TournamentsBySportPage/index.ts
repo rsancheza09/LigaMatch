@@ -1,0 +1,1 @@
+export { TournamentsBySportPage } from './TournamentsBySportPage';
