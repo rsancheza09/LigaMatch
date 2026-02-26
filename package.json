@@ -1,0 +1,53 @@
+{
+  "name": "project-template",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.18.0",
+    "npm": ">=10.9.0"
+  },
+  "description": "Template project with API (Hapi.js) and Web (React) structure",
+  "scripts": {
+    "build": "./scripts/build.sh",
+    "install": "./scripts/install.sh",
+    "prepare": "npx husky",
+    "check-types": "npm --prefix=api run check-types && npm --prefix=web run check-types",
+    "format": "npm --prefix=api run format && npm --prefix=web run format",
+    "format:check": "npm --prefix=api run format:check && npm --prefix=web run format:check",
+    "lint:all": "npm --prefix=web run lint:all && npm --prefix=api run lint:all",
+    "lint:fix": "npm --prefix=web run lint:fix && npm --prefix=api run lint:fix",
+    "test:api": "npm --prefix=api run test:unit",
+    "test:api:watch": "npm --prefix=api run test:unit -- --watch",
+    "test:web": "npm --prefix=web run test:unit",
+    "test:web:watch": "npm --prefix=web run test:unit -- --watch",
+    "start:api": "npm --prefix=api run start:dev",
+    "start:web": "npm --prefix=web run start:web",
+    "start:all": "npx concurrently --raw 'npm run start:api' 'npm run start:web' './scripts/open-swagger.sh'",
+    "storybook": "npm --prefix=web run storybook",
+    "db:migrate": "npm --prefix=api run db:migrate",
+    "db:migrate:make:schema": "npm --prefix=api run db:migrate:make:schema",
+    "db:migrate:make:data": "npm --prefix=api run db:migrate:make:data",
+    "db:rollback": "npm --prefix=api run db:rollback",
+    "db:seed": "npm --prefix=api run db:seed",
+    "db:setup": "npm --prefix=api run db:setup"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@types/node": "^25.0.3",
+    "concurrently": "^9.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "open": "^10.0.0",
+    "open-cli": "^1.0.0",
+    "wait-on": "^8.0.1"
+  },
+  "lint-staged": {
+    "api/**/*.{ts,tsx}": [
+      "npm --prefix=api run format -- --write",
+      "npm --prefix=api run lint:fix --"
+    ],
+    "web/**/*.{ts,tsx,scss}": [
+      "npm --prefix=web run format -- --write",
+      "npm --prefix=web run lint:fix --"
+    ]
+  }
+}
