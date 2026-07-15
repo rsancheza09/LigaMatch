@@ -50,6 +50,7 @@ import {
   addTeamVenue,
   addTechnicalStaff,
   addUniform,
+  extractPlayerFromDocument,
   getTeam,
   listTeamPlayerChangeRequests,
   removePlayer,
@@ -62,8 +63,8 @@ import {
   updateTechnicalStaff,
   updateUniform,
 } from '@shared/api/teams';
-import type { Player, Team, TeamTechnicalStaff, TeamUniform, TeamVenue } from '@shared/api/teams';
-import { buildBirthDateFromParts, formatPlayerBirthDisplay, getAgeFromBirthDate, isPlayerMinor } from '@shared/utils/dateUtils';
+import type { ExtractedPlayerFields, Player, Team, TeamTechnicalStaff, TeamUniform, TeamVenue } from '@shared/api/teams';
+import { buildBirthDateFromParts, formatPlayerBirthDisplay, getAgeFromBirthDate, isPlayerMinor, parseBirthDateParts } from '@shared/utils/dateUtils';
 import { fileToBase64 } from '@shared/utils/fileUtils';
 import { BirthDateSelects } from '@components/BirthDateSelects';
 import { DocumentTypeSelect } from '@components/DocumentTypeSelect';
@@ -109,6 +110,11 @@ export const TeamDetailPage = (props: TeamDetailPageProps = {}) => {
   const [playerDocIdFile, setPlayerDocIdFile] = useState<File | null>(null);
   const [playerDocBirthFile, setPlayerDocBirthFile] = useState<File | null>(null);
   const [playerDocGuardianFile, setPlayerDocGuardianFile] = useState<File | null>(null);
+  const [aiDocFile, setAiDocFile] = useState<File | null>(null);
+  const [aiExtracting, setAiExtracting] = useState(false);
+  const [aiExtractMessage, setAiExtractMessage] = useState('');
+  const [aiExtractError, setAiExtractError] = useState('');
+  const [aiLowConfidence, setAiLowConfidence] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [addVenueOpen, setAddVenueOpen] = useState(false);
@@ -479,6 +485,80 @@ export const TeamDetailPage = (props: TeamDetailPageProps = {}) => {
       loadTeam();
     } catch {
       /* ignore */
+    }
+  };
+
+  const applyExtractedPlayerFields = useCallback(
+    (extracted: ExtractedPlayerFields, sourceFile: File) => {
+      if (extracted.firstName) setPlayerFirstName(extracted.firstName);
+      if (extracted.lastName) setPlayerLastName(extracted.lastName);
+
+      if (extracted.birthDate) {
+        const parts = parseBirthDateParts(extracted.birthDate);
+        if (parts) {
+          setPlayerBirthDay(parts.day);
+          setPlayerBirthMonth(parts.month);
+          setPlayerBirthYear(parts.year);
+          if (hasPrimaryAgeCategories) {
+            const match = primaryAgeCategories.find(
+              (c) => parts.year >= c.minBirthYear && parts.year <= c.maxBirthYear
+            );
+            if (match) setPlayerCategoryId(match.id);
+          }
+        }
+      }
+
+      if (extracted.idDocumentType) setPlayerIdDocumentType(extracted.idDocumentType);
+      if (extracted.idDocumentNumber) setPlayerIdDocumentNumber(extracted.idDocumentNumber);
+      if (extracted.guardianName) setPlayerGuardianName(extracted.guardianName);
+      if (extracted.guardianRelation) setPlayerGuardianRelation(extracted.guardianRelation);
+      if (extracted.guardianIdNumber) setPlayerGuardianIdNumber(extracted.guardianIdNumber);
+
+      const detected = extracted.documentDetected;
+      if (detected === 'player_id_copy') {
+        setPlayerDocIdFile(sourceFile);
+      } else if (detected === 'birth_certificate') {
+        setPlayerDocBirthFile(sourceFile);
+      } else if (detected === 'guardian_id_copy') {
+        setPlayerDocGuardianFile(sourceFile);
+      } else if (extracted.idDocumentNumber || extracted.idDocumentType) {
+        setPlayerDocIdFile(sourceFile);
+      } else if (extracted.firstName || extracted.lastName || extracted.birthDate) {
+        setPlayerDocBirthFile(sourceFile);
+      }
+    },
+    [hasPrimaryAgeCategories, primaryAgeCategories]
+  );
+
+  const handleAiAutofill = async () => {
+    if (!id) return;
+    if (!aiDocFile) {
+      setAiExtractError(t('team.detail.aiAutofillNeedFile'));
+      setAiExtractMessage('');
+      setAiLowConfidence(false);
+      return;
+    }
+    setAiExtracting(true);
+    setAiExtractError('');
+    setAiExtractMessage('');
+    setAiLowConfidence(false);
+    setError('');
+    try {
+      const b64 = await fileToBase64(aiDocFile);
+      const extracted = await extractPlayerFromDocument(id, {
+        fileBase64: b64,
+        fileName: aiDocFile.name,
+        mimeType: aiDocFile.type || 'application/octet-stream',
+        documentHint: 'auto',
+      });
+      applyExtractedPlayerFields(extracted, aiDocFile);
+      const low = extracted.confidence === 'low';
+      setAiLowConfidence(low);
+      setAiExtractMessage(low ? t('team.detail.aiAutofillLowConfidence') : t('team.detail.aiAutofillReview'));
+    } catch (err) {
+      setAiExtractError(err instanceof Error ? err.message : t('team.detail.aiAutofillError'));
+    } finally {
+      setAiExtracting(false);
     }
   };
 
@@ -860,12 +940,18 @@ export const TeamDetailPage = (props: TeamDetailPageProps = {}) => {
                     setPlayerIdDocumentNumber('');
                     setPlayerGuardianName('');
                     setPlayerGuardianRelation('');
+                    setPlayerGuardianIdNumber('');
                     setPlayerGuardianPhone('');
                     setPlayerGuardianEmail('');
                     setPlayerPhotoFile(null);
                     setPlayerDocIdFile(null);
                     setPlayerDocBirthFile(null);
                     setPlayerDocGuardianFile(null);
+                    setAiDocFile(null);
+                    setAiExtracting(false);
+                    setAiExtractMessage('');
+                    setAiExtractError('');
+                    setAiLowConfidence(false);
                     setError('');
                   }}
                 >
@@ -1379,6 +1465,40 @@ export const TeamDetailPage = (props: TeamDetailPageProps = {}) => {
           <DialogTitle>{t('team.detail.addPlayer')}</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             {error && <Typography variant="body2" color="error">{error}</Typography>}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle2">{t('team.detail.aiAutofillSection')}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t('team.detail.aiAutofillHint')}
+              </Typography>
+              <FileUploadButton
+                label={t('team.detail.aiAutofillAttach')}
+                selectedFileName={aiDocFile?.name}
+                accept=".pdf,image/jpeg,image/png,image/gif,image/webp"
+                onChange={(file) => {
+                  setAiDocFile(file);
+                  setAiExtractError('');
+                  setAiExtractMessage('');
+                  setAiLowConfidence(false);
+                }}
+              />
+              <Button
+                variant="outlined"
+                onClick={handleAiAutofill}
+                disabled={aiExtracting || submitting || !aiDocFile}
+              >
+                {aiExtracting ? t('team.detail.aiAutofillLoading') : t('team.detail.aiAutofillButton')}
+              </Button>
+              {aiExtractError && (
+                <Typography variant="body2" color="error">
+                  {aiExtractError}
+                </Typography>
+              )}
+              {aiExtractMessage && !aiExtractError && (
+                <Alert severity={aiLowConfidence ? 'warning' : 'info'}>
+                  {aiExtractMessage}
+                </Alert>
+              )}
+            </Box>
             <TextField label={t('team.detail.firstName')} value={playerFirstName} onChange={(e) => setPlayerFirstName(e.target.value)} fullWidth />
             <TextField label={t('team.detail.lastName')} value={playerLastName} onChange={(e) => setPlayerLastName(e.target.value)} fullWidth />
             <BirthDateSelects

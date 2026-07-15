@@ -314,6 +314,25 @@ export async function removePlayer(
 
 export type PlayerUploadType = 'photo' | 'player_id_copy' | 'birth_certificate' | 'guardian_id_copy';
 
+export type ExtractPlayerDocumentHint =
+  | 'player_id_copy'
+  | 'birth_certificate'
+  | 'guardian_id_copy'
+  | 'auto';
+
+export type ExtractedPlayerFields = {
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  idDocumentType?: string;
+  idDocumentNumber?: string;
+  guardianName?: string;
+  guardianRelation?: string;
+  guardianIdNumber?: string;
+  documentDetected?: 'player_id_copy' | 'birth_certificate' | 'guardian_id_copy' | 'unknown';
+  confidence?: 'high' | 'medium' | 'low';
+};
+
 export async function uploadPlayerFile(
   teamId: string,
   type: PlayerUploadType,
@@ -328,6 +347,21 @@ export async function uploadPlayerFile(
       body: JSON.stringify({ type, fileBase64, fileName, mimeType }),
     }
   );
+}
+
+export async function extractPlayerFromDocument(
+  teamId: string,
+  payload: {
+    fileBase64: string;
+    fileName: string;
+    mimeType: string;
+    documentHint?: ExtractPlayerDocumentHint;
+  }
+): Promise<ExtractedPlayerFields> {
+  return apiRequest<ExtractedPlayerFields>(`/teams/${teamId}/players/extract-from-document`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /** Full URL to view/download an uploaded player file. If url is already absolute (e.g. Cloudinary), returns as-is. */

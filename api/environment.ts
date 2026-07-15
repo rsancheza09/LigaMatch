@@ -9,6 +9,8 @@ declare global {
       ENV?: string;
       HOST?: string;
       PORT?: string;
+      OPENAI_API_KEY?: string;
+      OPENAI_MODEL?: string;
     }
   }
 }
