@@ -1,7 +1,12 @@
 import i18n from '@shared/i18n';
 
-export const getApiBase = (): string =>
-  (typeof process !== 'undefined' && process.env?.API_HOST) || 'http://localhost:3000';
+/** Empty API_HOST uses same-origin requests (webpack-dev-server proxies to the API). */
+export const getApiBase = (): string => {
+  if (typeof process !== 'undefined' && typeof process.env?.API_HOST === 'string') {
+    return process.env.API_HOST.replace(/\/$/, '');
+  }
+  return 'http://localhost:3000';
+};
 
 const API_BASE = getApiBase();
 
