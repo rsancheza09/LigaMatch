@@ -211,6 +211,18 @@ export const playerUploadPayload = Joi.object({
   mimeType: Joi.string().max(128).required(),
 });
 
+export const playerExtractFromDocumentPayload = Joi.object({
+  fileBase64: Joi.string().required().description('Base64 or data URL of the document image/PDF'),
+  fileName: Joi.string().max(255).required(),
+  mimeType: Joi.string()
+    .valid('image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf')
+    .required(),
+  documentHint: Joi.string()
+    .valid('player_id_copy', 'birth_certificate', 'guardian_id_copy', 'auto')
+    .optional()
+    .description('Optional hint for document type; default auto'),
+});
+
 export const inviteTokenParam = Joi.object({
   token: Joi.string().length(64).required().description('Invitation token'),
 });

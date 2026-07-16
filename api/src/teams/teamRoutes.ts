@@ -32,6 +32,7 @@ import {
   playerSetCategoryPayload,
   playerReorderPayload,
   playerUploadPayload,
+  playerExtractFromDocumentPayload,
   teamAddExistingPayload,
   teamCreatePayload,
   teamInvitePayload,
@@ -45,6 +46,11 @@ import {
 } from '../schemas';
 import { sendTeamInvitation } from '../services/emailService';
 import { saveUploadedFileFromBase64, resolveFilePath } from '../services/uploadService';
+import {
+  DocumentExtractionError,
+  extractPlayerFieldsFromDocument,
+  type DocumentHint,
+} from '../services/documentExtractionService';
 
 async function ensureTournamentAdmin(userId: string, tournamentId: string): Promise<void> {
   const admin = await TournamentAdmin.query().findOne({ userId, tournamentId });
@@ -1358,6 +1364,37 @@ const uploadPlayerFile = async (request: Request, h: ResponseToolkit) => {
   return h.response(result).code(201);
 };
 
+const extractPlayerFromDocument = async (request: Request, h: ResponseToolkit) => {
+  const { userId } = request.auth.credentials as { userId: string };
+  const { id: teamId } = request.params as { id: string };
+  await ensureTeamAccess(userId, teamId, true);
+
+  const payload = request.payload as {
+    fileBase64: string;
+    fileName: string;
+    mimeType: string;
+    documentHint?: DocumentHint;
+  };
+  if (!payload.fileBase64 || !payload.fileName || !payload.mimeType) {
+    throw createBadRequest(request, 'errors.documentExtractionFieldsRequired');
+  }
+
+  try {
+    const result = await extractPlayerFieldsFromDocument({
+      fileBase64: payload.fileBase64,
+      fileName: payload.fileName,
+      mimeType: payload.mimeType,
+      documentHint: payload.documentHint,
+    });
+    return h.response(result).code(200);
+  } catch (err) {
+    if (err instanceof DocumentExtractionError) {
+      throw createBadRequest(request, err.key);
+    }
+    throw err;
+  }
+};
+
 const servePlayerFile = async (request: Request, h: ResponseToolkit) => {
   const { userId } = request.auth.credentials as { userId: string };
   const { id: teamId, filename } = request.params as { id: string; filename: string };
@@ -1724,6 +1761,22 @@ export const teamRoutes: Plugin<void> = {
           payload: { maxBytes: 15 * 1024 * 1024 },
         },
         handler: uploadPlayerFile,
+      },
+      {
+        method: 'POST',
+        path: '/teams/{id}/players/extract-from-document',
+        options: {
+          auth: { mode: 'required' },
+          tags: ['api', 'teams'],
+          description:
+            'Extract player form fields from an ID card, passport, or birth certificate image/PDF using AI (does not persist the file)',
+          validate: {
+            params: uuidParam,
+            payload: playerExtractFromDocumentPayload,
+          },
+          payload: { maxBytes: 15 * 1024 * 1024 },
+        },
+        handler: extractPlayerFromDocument,
       },
       {
         method: 'GET',
